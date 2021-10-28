@@ -13,23 +13,23 @@ I'll also be implementing the vs code in my OS to edit my code.
 ## Installation
 ### Terraform
 https://learn.hashicorp.com/tutorials/terraform/install-cli
-Ensure that your system is up to date, and you have the gnupg, software-properties-common, and curl packages installed. You will use these packages to verify HashiCorp's GPG signature, and install HashiCorp's Debian package repository.
+• Ensure that your system is up to date, and you have the gnupg, software-properties-common, and curl packages installed. You will use these packages to verify HashiCorp's GPG signature, and install HashiCorp's Debian package repository.
 
 `
 sudo apt-get update && sudo apt-get install -y gnupg software-properties-common curl
 `
 
-Add the HashiCorp GPG key.
+• Add the HashiCorp GPG key.
 `
 curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
 `
 
-Add the official HashiCorp Linux repository.
+• Add the official HashiCorp Linux repository.
 `
 sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
 `
 
-Update to add the repository, and install the Terraform CLI.
+• Update to add the repository, and install the Terraform CLI.
 `
 sudo apt-get update && sudo apt-get install terraform
 `
@@ -52,10 +52,10 @@ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip
 `sudo apt-get update`
 
 ## Kubectl
-Normal Kubernetes Docs
+• Normal Kubernetes Docs
 https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
 
-specifically, we’re doing for the following EKS Docs
+• Specifically, we’re doing for the following EKS Docs
 https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html
 
 • To install kubectl on Linux
@@ -66,7 +66,7 @@ https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html
 • Apply execute permissions to the binary.
 - `chmod +x ./kubectl`
 
-Copy the binary to a folder in your PATH. If you have already installed a version of kubectl, then we recommend creating a $HOME/bin/kubectl and ensuring that $HOME/bin comes first in your $PATH. 
+• Copy the binary to a folder in your PATH. If you have already installed a version of kubectl, then we recommend creating a $HOME/bin/kubectl and ensuring that $HOME/bin comes first in your $PATH. 
 - `mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$PATH:$HOME/bin`
 
 • (Optional) Add the $HOME/bin path to your shell initialization file so that it is configured when you open a shell.
@@ -81,7 +81,7 @@ Copy the binary to a folder in your PATH. If you have already installed a versio
 - `mkdir devopseks_01`
 then create a sub folder for terraform files
 - `mkdir Terraform`
-- 
+
 •BEWARE
 - Note for users planning to upload this project to github ensure to use the gitignore correctly to not push credentials or secrets to the public. please follow the recommendations [here](https://github.com/github/gitignore/blob/master/Terraform.gitignore)
 
@@ -124,14 +124,14 @@ module "vpc" {
 }
 ```
 
-The VPC module list out the following code and you adjust to your needs. 
+• The VPC module list out the following code and you adjust to your needs. 
 To get the `version` you can check the terraform registry via: 
 - Search vpc
 - Click modules
 - Then select the vpc and you'll see it on the top right.
 
-`aws_availbility_zones` will depend on the region and that region must have 3 AZs 
-The tag cluster-name is references from the `variables.tf` file
+• `aws_availbility_zones` will depend on the region and that region must have 3 AZs 
+• The tag cluster-name is references from the `variables.tf` file
 
 Variables
 `variable.tf`
@@ -149,11 +149,11 @@ variable "profile" {
     description = "Which profile to use for IAM"
 }
 ```
-we changed from what the registry has to add our profile so we may give terraform secure access to deploy services without putting our credentials in the code
+• We changed from what the registry has to add our profile so we may give terraform secure access to deploy services without putting our credentials in the code
 
-In the `variable.tf` you include `profile` description this is a ref to our earlier input of `aws profiles`
+• In the `variable.tf` you include `profile` description this is a ref to our earlier input of `aws profiles`
 
-provider
+Provider
 `provider.tf`
 ```
 provider "aws" {
@@ -271,8 +271,48 @@ These policies are needed so we can create the EKS cluster
 
 - This will help us attach the worker nodes to the cluster and create the communication between the worker nodes and the EKS Cluster
 
-ekscluster
+EKSCluster
 `ekscluster.tf`
+```
+resource "aws_eks_cluster" "aws_eks" {
+  name     = "eks_cluster_bryan"
+  role_arn = aws_iam_role.eks_cluster.arn
+
+  vpc_config {
+    subnet_ids = module.vpc.public_subnets
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.AmazonEKSClusterPolicy,  
+    aws_iam_role_policy_attachment.AmazonEKSServicePolicy,
+  ]
+
+  tags = {
+    Name = "EKS_Cluster_Bryan"
+  }
+}
+
+resource "aws_eks_node_group" "node" {
+  cluster_name    = aws_eks_cluster.aws_eks.name
+  node_group_name = "node_bryan"
+  node_role_arn   = aws_iam_role.eks_nodes.arn
+  subnet_ids      = module.vpc.public_subnets
+
+  scaling_config {
+    desired_size = 1
+    max_size     = 1
+    min_size     = 1
+  }
+
+  # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
+  # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
+  depends_on = [
+    aws_iam_role_policy_attachment.AmazonEKSWorkerNodePolicy,
+    aws_iam_role_policy_attachment.AmazonEKS_CNI_Policy,
+    aws_iam_role_policy_attachment.AmazonEC2ContainerRegistryReadOnly,
+  ]
+}
+```
 - The resource `aws_eks_cluster` name of the resource will `aws_eks` 
 - The name of the actual cluster will be `eks_cluster_levelup`
 - Here we’re choosing the `role_arn` where we specify what role we will use, `eks_cluster` the role we created in the `iam.tf` 
@@ -300,7 +340,7 @@ ekscluster
 
 - Next define is the node role which we had defined `eks_nodes`, we had defined this in `iam.tf`
 
-- Next we’re defining the subnet_ids and here we again define the public subnets just like in the previous resource 
+- Next we’re defining the `subnet_ids` and here we again define the public subnets just like in the previous resource 
 
 - Next we define the scaling capacity  
     - `scaling_config` 
@@ -346,7 +386,7 @@ ekscluster
 - VPC 
 - SG 
 - EC2 
-- EKS cluster
+- EKS Cluster
 
 Once its up and running you can test it via running an app on it.
 
@@ -435,3 +475,5 @@ Terraform is not aware of the resources provisioned by k8s and will not clean up
 ## License
 
 MIT
+
+
