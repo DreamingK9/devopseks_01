@@ -1,4 +1,4 @@
-# DevOps Terraform and EKS
+# Terraform and EKS
 
 This project deploys a small cluster on AWS using terraform.
 ## Requirements
